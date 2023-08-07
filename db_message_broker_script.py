@@ -92,3 +92,5 @@ class MessagesBroker:
 if __name__ == '__main__':
     broker = MessagesBroker()
     broker.run_job()
+
+# test
