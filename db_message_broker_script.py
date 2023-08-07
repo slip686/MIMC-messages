@@ -21,13 +21,13 @@ class MessagesBroker:
         self.db_connection = psycopg2.connect(user="server_messages_script",
                                               password="ddtlbnt yjdsq",
                                               host="exon-db.sliplab.net",
-                                              port="5432",
+                                              port="5433",
                                               database="exon",
                                               keepalives=1,
                                               keepalives_idle=30)
         self.db_connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.db_cursor = self.db_connection.cursor()
-        self.db_cursor.execute(f'LISTEN "broker_msg_channel"')
+        self.db_cursor.execute(f'LISTEN "send_message"')
 
     def connect_to_mq(self):
         credentials = pika.PlainCredentials('server_messages_script', 'qwe321qwe')
