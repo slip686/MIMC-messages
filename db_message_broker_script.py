@@ -20,7 +20,7 @@ class MessagesBroker:
     def connect_to_db(self):
         self.db_connection = psycopg2.connect(user="server_messages_script",
                                               password="ddtlbnt yjdsq",
-                                              host="sliplab.net",
+                                              host="exon-db.sliplab.net",
                                               port="5432",
                                               database="exon",
                                               keepalives=1,
