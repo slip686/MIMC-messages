@@ -1,21 +1,27 @@
 import datetime
+import json
 
 from psycopg2.extensions import AsIs
+import ast
 import asyncio
 import psycopg2
 from threading import Thread
 import pika
 from pika.exceptions import AMQPError
-import json
+import time
 
 
 class MessagesBroker:
     def __init__(self):
+        self.CHANNELS = []
         self.db_connection = None
         self.db_cursor = None
         self.mq_connection = None
         self.mq_channel_broker = None
+
+        self.get_existing_channels()
         self.set_job_connections()
+        self.declare_channels()
 
     def connect_to_db(self):
         self.db_connection = psycopg2.connect(user="server_messages_script",
@@ -27,7 +33,8 @@ class MessagesBroker:
                                               keepalives_idle=30)
         self.db_connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.db_cursor = self.db_connection.cursor()
-        self.db_cursor.execute(f'LISTEN "send_message"')
+        self.db_cursor.execute(f'LISTEN new_message;')
+        self.db_cursor.execute(f'LISTEN new_channel;')
 
     def connect_to_mq(self):
         credentials = pika.PlainCredentials('server_messages_script', 'qwe321qwe')
@@ -35,7 +42,15 @@ class MessagesBroker:
 
         self.mq_connection = pika.BlockingConnection(parameters)
         self.mq_channel_broker = self.mq_connection.channel()
-        self.mq_channel_broker.queue_declare(queue="broker_msg_channel")
+
+    def get_existing_channels(self):
+        self.connect_to_db()
+        self.db_cursor.execute('SELECT ntfcn_channel FROM user_model')
+        existing_channels = self.db_cursor.fetchall()
+        self.db_connection.close()
+        for i in existing_channels:
+            for k in i:
+                self.CHANNELS.append(k)
 
     def set_job_connections(self):
         if self.db_connection:
@@ -45,8 +60,8 @@ class MessagesBroker:
             self.mq_connection.close()
             self.mq_channel_broker = None
 
-        self.connect_to_mq()
         self.connect_to_db()
+        self.connect_to_mq()
 
     def send_message(self, channel, message):
         while True:
@@ -55,7 +70,7 @@ class MessagesBroker:
                 self.mq_channel_broker.basic_publish(exchange='',
                                                      routing_key=channel,
                                                      body=message)
-                print(f'{datetime.datetime.now()} {message} sent to channel {channel}')
+                print(f'{datetime.datetime.now()} sent to mq')
                 break
             except AMQPError as err:
                 print(err)
@@ -66,13 +81,24 @@ class MessagesBroker:
                 print(f'{datetime.datetime.now()} reconnected')
                 continue
 
+    def declare_channels(self):
+        for channel in self.CHANNELS:
+            self.mq_channel_broker.queue_declare(queue=channel)
+
     def handle_notify(self):
         try:
             self.db_connection.poll()
             for notify in self.db_connection.notifies:
-                message = json.loads(notify.payload)
-                channel = message['receiver_channel']
-                self.send_message(channel=channel, message=notify.payload)
+                if notify.channel == 'new_channel':
+                    new_channel = json.loads(notify.payload)['new_channel']
+                    self.CHANNELS.append(new_channel)
+                    print(new_channel)
+                    self.mq_channel_broker.queue_declare(queue=new_channel)
+                    print('new channel listening')
+                else:
+                    channel = json.loads(notify.payload)['receiver_channel']
+                    print(channel, notify.payload)
+                    self.send_message(channel=channel, message=notify.payload)
             self.db_connection.notifies.clear()
         except Exception as err:
             print(err)
@@ -92,5 +118,3 @@ class MessagesBroker:
 if __name__ == '__main__':
     broker = MessagesBroker()
     broker.run_job()
-
-# test
