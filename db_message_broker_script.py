@@ -74,11 +74,7 @@ class MessagesBroker:
                 break
             except AMQPError as err:
                 print(err)
-                print(f'{datetime.datetime.now()} reconnection')
-                self.mq_connection = None
-                self.mq_channel_broker = None
-                self.connect_to_mq()
-                print(f'{datetime.datetime.now()} reconnected')
+                self.recon()
                 continue
 
     def declare_channels(self):
@@ -93,8 +89,15 @@ class MessagesBroker:
                     new_channel = json.loads(notify.payload)['new_channel']
                     self.CHANNELS.append(new_channel)
                     print(new_channel)
-                    self.mq_channel_broker.queue_declare(queue=new_channel)
-                    print('new channel listening')
+                    while True:
+                        try:
+                            self.mq_channel_broker.queue_declare(queue=new_channel)
+                            print('new channel listening')
+                            break
+                        except AMQPError as err:
+                            print(err)
+                            self.recon()
+                            continue
                 else:
                     channel = json.loads(notify.payload)['receiver_channel']
                     print(channel, notify.payload)
@@ -113,6 +116,13 @@ class MessagesBroker:
 
         run_loop_thread = Thread(target=self.run_loop, args=(message_wait_loop,), name='message_wait_loop')
         run_loop_thread.start()
+
+    def recon(self):
+        print(f'{datetime.datetime.now()} reconnection')
+        self.mq_connection = None
+        self.mq_channel_broker = None
+        self.connect_to_mq()
+        print(f'{datetime.datetime.now()} reconnected')
 
 
 if __name__ == '__main__':
