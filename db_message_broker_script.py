@@ -1,6 +1,5 @@
 import datetime
 import json
-
 from psycopg2.extensions import AsIs
 import asyncio
 import psycopg2
