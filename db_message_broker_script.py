@@ -2,13 +2,11 @@ import datetime
 import json
 
 from psycopg2.extensions import AsIs
-import ast
 import asyncio
 import psycopg2
 from threading import Thread
 import pika
 from pika.exceptions import AMQPError
-import time
 
 
 class MessagesBroker:
