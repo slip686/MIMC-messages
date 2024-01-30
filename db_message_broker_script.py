@@ -36,7 +36,7 @@ class MessagesBroker:
         print('db connected')
 
     def connect_to_mq(self):
-        credentials = pika.PlainCredentials(Config.MQ_USER, Config.MQ_USER)
+        credentials = pika.PlainCredentials(Config.MQ_USER, Config.MQ_PASS)
         parameters = pika.ConnectionParameters(Config.MQ_HOST, Config.MQ_PORT, '/', credentials,)
 
         self.mq_connection = pika.BlockingConnection(parameters)
