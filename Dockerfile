@@ -6,6 +6,7 @@ RUN apt-get update \
 
 WORKDIR /db_messages_broker_script
 COPY db_message_broker_script.py ./
+COPY config.py ./
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
 CMD ["python3", "./db_message_broker_script.py"]
