@@ -1,3 +1,4 @@
+from config import Config
 import datetime
 import json
 from psycopg2.extensions import AsIs
@@ -21,24 +22,26 @@ class MessagesBroker:
         self.declare_channels()
 
     def connect_to_db(self):
-        self.db_connection = psycopg2.connect(user="server_messages_script",
-                                              password="ddtlbnt yjdsq",
-                                              host="exon-db.sliplab.net",
-                                              port="5433",
-                                              database="exon",
+        self.db_connection = psycopg2.connect(user=Config.DB_USER,
+                                              password=Config.DB_PASS,
+                                              host=Config.DB_HOST,
+                                              port=Config.DB_PORT,
+                                              database=Config.DB_NAME,
                                               keepalives=1,
                                               keepalives_idle=30)
         self.db_connection.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         self.db_cursor = self.db_connection.cursor()
         self.db_cursor.execute(f'LISTEN new_message;')
         self.db_cursor.execute(f'LISTEN new_channel;')
+        print('db connected')
 
     def connect_to_mq(self):
-        credentials = pika.PlainCredentials('server_messages_script', 'qwe321qwe')
-        parameters = pika.ConnectionParameters('messages.sliplab.net', 5672, '/', credentials,)
+        credentials = pika.PlainCredentials(Config.MQ_USER, Config.MQ_USER)
+        parameters = pika.ConnectionParameters(Config.MQ_HOST, Config.MQ_PORT, '/', credentials,)
 
         self.mq_connection = pika.BlockingConnection(parameters)
         self.mq_channel_broker = self.mq_connection.channel()
+        print('rabbit connected')
 
     def get_existing_channels(self):
         self.connect_to_db()
@@ -103,7 +106,8 @@ class MessagesBroker:
         except Exception as err:
             print(err)
 
-    def run_loop(self, loop):
+    @staticmethod
+    def run_loop(loop):
         asyncio.set_event_loop(loop)
         loop.run_forever()
 
